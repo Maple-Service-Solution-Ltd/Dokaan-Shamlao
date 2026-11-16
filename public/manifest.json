@@ -1,0 +1,10 @@
+{
+  "name": "দোকান সামলাও! — Dokaan Shamlao",
+  "short_name": "দোকান সামলাও",
+  "description": "পাড়ার মুদি দোকান সামলানোর আর্কেড গেম, সৌজন্যে HelloKhata",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF8E7",
+  "theme_color": "#C9462C"
+}

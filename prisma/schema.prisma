@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id           String              @id @default(cuid())
+  tokenHash    String              @unique
+  accountCode  String              @unique
+  createdAt    DateTime            @default(now())
+  lastSeenAt   DateTime            @default(now())
+  profile      PlayerProfile?
+  progress     PlayerProgress?
+  sessions     GameSession[]
+  runs         ChallengeRun[]
+  scores       Score[]
+  achievements PlayerAchievement[]
+  rewards      PlayerReward[]
+  friendsMade  FriendChallenge[]   @relation("FriendCreator")
+  analytics    AnalyticsEvent[]
+
+  @@map("players")
+}
+
+model PlayerProfile {
+  id          String   @id @default(cuid())
+  playerId    String   @unique
+  displayName String   @default("দোকানদার")
+  avatar      String   @default("shopkeeper")
+  district    String?
+  lang        String   @default("bn")
+  musicOn     Boolean  @default(true)
+  sfxOn       Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  player      Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("player_profiles")
+}
+
+model PlayerProgress {
+  id            String   @id @default(cuid())
+  playerId      String   @unique
+  coins         Int      @default(100)
+  xp            Int      @default(0)
+  highestLevel  Int      @default(1)
+  storyStars    Json     @default("{}")
+  bestScores    Json     @default("{}")
+  unlockedItems Json     @default("[\"sign_default\",\"shelf_wood\",\"decor_bulb\",\"outfit_apron\",\"counter_wood\",\"env_para\"]")
+  equippedItems Json     @default("{\"sign\":\"sign_default\",\"shelf\":\"shelf_wood\",\"decor\":\"decor_bulb\",\"outfit\":\"outfit_apron\",\"counter\":\"counter_wood\",\"env\":\"env_para\"}")
+  lifetimeStats Json     @default("{}")
+  tutorialsSeen Json     @default("[]")
+  updatedAt     DateTime @updatedAt
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("player_progress")
+}
+
+model GameSession {
+  id          String          @id @default(cuid())
+  playerId    String
+  mode        String
+  configId    String
+  seed        Int
+  descriptor  Json
+  status      String          @default("active")
+  startedAt   DateTime        @default(now())
+  completedAt DateTime?
+  player      Player          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  actions     SessionAction?
+  run         ChallengeRun?
+  scores      Score[]
+
+  @@index([playerId, status])
+  @@map("game_sessions")
+}
+
+model SessionAction {
+  id               String      @id @default(cuid())
+  sessionId        String      @unique
+  actionCount      Int
+  endTick          Int
+  quit             Boolean     @default(false)
+  peakActionsPerSec Int        @default(0)
+  log              Json
+  createdAt        DateTime    @default(now())
+  session          GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("session_actions")
+}
+
+model Level {
+  levelNumber Int      @id
+  chapter     Int
+  titleBn     String
+  titleEn     String
+  bossId      String?
+  challenges  Json
+  config      Json
+  version     Int      @default(1)
+  updatedAt   DateTime @updatedAt
+
+  @@map("levels")
+}
+
+model ChallengeTemplate {
+  id          String   @id
+  category    String
+  difficulty  Int
+  minLevel    Int
+  nameBn      String
+  nameEn      String
+  definition  Json
+  version     Int      @default(1)
+  updatedAt   DateTime @updatedAt
+
+  @@map("challenge_templates")
+}
+
+model ChallengeEvent {
+  id          String   @id
+  kind        String
+  description Json
+  createdAt   DateTime @default(now())
+
+  @@map("challenge_events")
+}
+
+model ChallengeRun {
+  id           String      @id @default(cuid())
+  sessionId    String      @unique
+  playerId     String
+  mode         String
+  configId     String
+  challengeIds Json
+  won          Boolean
+  reason       String
+  score        Int
+  stars        Int
+  ticks        Int
+  accuracy     Int
+  satisfaction Int
+  profit       Int
+  stats        Json
+  createdAt    DateTime    @default(now())
+  session      GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  player       Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, createdAt])
+  @@map("challenge_runs")
+}
+
+model Score {
+  id        String      @id @default(cuid())
+  sessionId String
+  playerId  String
+  board     String
+  weekKey   String
+  score     Int
+  stars     Int         @default(0)
+  ticks     Int         @default(0)
+  district  String?
+  createdAt DateTime    @default(now())
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  player    Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, board])
+  @@index([board, score(sort: Desc), ticks(sort: Asc)])
+  @@index([board, weekKey, score(sort: Desc)])
+  @@index([board, district, score(sort: Desc)])
+  @@map("scores")
+}
+
+model Leaderboard {
+  id          String   @id
+  titleBn     String
+  titleEn     String
+  mode        String
+  updatedAt   DateTime @updatedAt
+
+  @@map("leaderboards")
+}
+
+model Achievement {
+  id                 String              @id
+  nameBn             String
+  nameEn             String
+  descriptionBn      String
+  descriptionEn      String
+  icon               String
+  target             Int
+  rewardCoins        Int
+  rewardXp           Int
+  updatedAt          DateTime            @updatedAt
+  playerAchievements PlayerAchievement[]
+
+  @@map("achievements")
+}
+
+model PlayerAchievement {
+  id            String      @id @default(cuid())
+  playerId      String
+  achievementId String
+  progress      Int         @default(0)
+  unlocked      Boolean     @default(false)
+  unlockedAt    DateTime?
+  updatedAt     DateTime    @updatedAt
+  player        Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, achievementId])
+  @@map("player_achievements")
+}
+
+model Reward {
+  id            String         @id
+  category      String
+  nameBn        String
+  nameEn        String
+  costCoins     Int            @default(0)
+  unlockLevel   Int            @default(1)
+  meta          Json
+  updatedAt     DateTime       @updatedAt
+  playerRewards PlayerReward[]
+
+  @@map("rewards")
+}
+
+model PlayerReward {
+  id        String   @id @default(cuid())
+  playerId  String
+  rewardId  String?
+  sourceKey String
+  coins     Int      @default(0)
+  xp        Int      @default(0)
+  grantedAt DateTime @default(now())
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  reward    Reward?  @relation(fields: [rewardId], references: [id], onDelete: SetNull)
+
+  @@unique([playerId, sourceKey])
+  @@map("player_rewards")
+}
+
+model DailyChallenge {
+  date      String   @id
+  seed      Int
+  config    Json
+  createdAt DateTime @default(now())
+
+  @@map("daily_challenges")
+}
+
+model FriendChallenge {
+  code         String   @id
+  creatorId    String
+  creatorName  String
+  creatorScore Int      @default(0)
+  seed         Int
+  config       Json
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  creator      Player   @relation("FriendCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("friend_challenges")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  playerId  String?
+  sessionId String?
+  name      String
+  props     Json     @default("{}")
+  createdAt DateTime @default(now())
+  player    Player?  @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@index([name, createdAt])
+  @@map("analytics_events")
+}

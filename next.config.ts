@@ -10,7 +10,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: 'standalone',
+  ...(process.env.STANDALONE_BUILD === '1' ? { output: 'standalone' } : {}),
   // Linting is not part of the build gate; `npm run typecheck` (strict TS) and the test suites are.
   eslint: { ignoreDuringBuilds: true },
   async headers() {
